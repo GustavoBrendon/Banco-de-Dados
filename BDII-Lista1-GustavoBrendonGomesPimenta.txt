@@ -1,0 +1,123 @@
+INSTITUTO FEDERAL DE EDUCAÇÃO CIÊNCIA E TECNOLOGIA DE MINAS GERAIS – CAMPUS SÃO JOÃO EVANGELISTA
+BACHARELADO EM SISTEMAS DE INFORMAÇÃO
+ 
+Gustavo Brendon Gomes Pimenta
+
+Lista 1 - Banco de dados II
+ 
+
+SÃO JOÃO EVANGELISTA
+2023
+
+
+Tabelas criadas:
+
+CREATE TABLE
+aluno(
+matricula_aluno integer PRIMARY KEY NOT NULL,
+nome varchar(30) NOT NULL,
+bolsista boolean NOT NULL
+)
+CREATE TABLE curso
+(
+codigo_curso integer NOT NULL,
+nome_curso varchar(20) NOT NULL,
+aluno_matricula integer NOT NULL,
+valor_curso numeric(5,1) NOT NULL,
+FOREIGN KEY(aluno_matricula) REFERENCES
+aluno(matricula_aluno)
+)
+drop table curso
+drop table aluno
+insert into aluno(matricula_aluno, nome, bolsista) values(567,'Rafael Bartos',false)
+insert into curso(codigo_curso,nome_curso,aluno_matricula,valor_curso)
+values(8,'Química',567,800)
+
+
+	-- Questão 1 --
+
+CREATE OR REPLACE FUNCTION maior_alunos()
+RETURN integer AS $$
+DECLARE
+codigo integer;
+BEGIN
+select codigo_curso into codigo where curso_matricula IN
+(select codigo_curso from table GROUP BY codigo_curso HAVING SUM(curso_matricula) >
+value)
+return codigo;
+END;
+$$ LANGUAGE plpgsql;
+
+
+	-- Questão 2 --
+
+
+CREATE OR REPLACE VIEW quantidade_disciplina AS
+select COUNT(matricula_curso) from aluno INNER JOIN
+curso ON curso.matricula_curso = aluno.matricula_aluno
+GROUP BY matricula_curso
+select * from quantidade_disciplina
+CREATE OR REPLACE FUNCTION consulta_quantidade(matricula_aluno integer)
+RETURNS integer AS $$
+BEGIN
+select COUNT(matricula_aluno)
+from quantidade_disciplina;
+END;
+$$ LANGUAGE plpgsql;
+select consulta_quantidade(234);
+
+
+	-- Questão 3 --
+
+
+CREATE OR REPLACE FUNCTION valor_total(matricula integer)
+RETURNS numeric AS $$
+DECLARE
+valor_total numeric(5,1);
+BEGIN
+select SUM(valor_curso) into valor_total from curso
+where curso.aluno_matricula = matricula;
+RETURN valor_total;
+END;
+$$ language 'plpgsql';
+select valor_total(567);
+
+
+	-- Questão 4 --
+
+
+CREATE OR REPLACE FUNCTION nome_curso(matricula integer)
+RETURNS varchar AS $$
+DECLARE
+nome varchar(150);
+BEGIN
+select nome_curso into nome from curso
+where curso.aluno_matricula = matricula;
+RETURN nome;
+END;
+$$ language 'plpgsql';
+select nome_curso(567);
+
+
+	-- Questão 5 --
+
+
+select nome,cpf,uf,nomemunicipiopescador FROM pescador INNER JOIN
+local_pescador ON local_pescador.idpescador = pescador.id
+WHERE data_indice BETWEEN '2014-01-01' AND '2015-04-20'
+AND 'minas gerais';
+
+
+	-- Questão 6 --
+
+
+select nome,cpf,uf,nomemunicipiopescador FROM pescador INNER JOIN
+local_pescador ON local_pescador.idpescador = pescador.id
+WHERE data_indice BETWEEN '2014-01-01' AND '2015-04-20'
+AND 'amazonas';
+
+
+	-- Questão 7 --
+
+
+CREATE INDEX data_indice ON pescadores(data_inicio);

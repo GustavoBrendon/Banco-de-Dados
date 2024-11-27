@@ -1,0 +1,347 @@
+INSTITUTO FEDERAL DE EDUCAÇÃO CIÊNCIA E TECNOLOGIA DE MINAS GERAIS – CAMPUS SÃO JOÃO EVANGELISTA
+BACHARELADO EM SISTEMAS DE INFORMAÇÃO
+ 
+Gustavo Brendon Gomes Pimenta
+
+Lista 4 - Banco de dados II
+ 
+
+SÃO JOÃO EVANGELISTA
+2023
+
+
+-- Questão 1 --
+
+
+CREATE OR REPLACE FUNCTION retorna_cpf(cpf text)
+RETURNS text AS $$
+BEGIN
+	return (select substring(cpf from 1 for 3) || '.' 
+	|| substring(cpf from 4 for 3) || '.' 
+	|| substring(cpf from 7 for 3) || '-'
+	|| substring(cpf from 10 for 2));
+END;
+$$ language 'plpgsql';
+
+
+select retorna_cpf('334678965434');
+
+
+
+-- Questão 2 --
+
+
+CREATE OR REPLACE FUNCTION retorna_cnpj(cnpj text)
+RETURNS text AS $$
+BEGIN
+	return (select substring(cnpj from 1 for 3) || '.' 
+	|| substring(cnpj from 4 for 3) || '.' 
+	|| substring(cnpj from 7 for 3) || '/'
+	|| substring(cpnj from 10 for 4)|| '-'
+	|| substring(cnpj from 14 for 2));
+END;
+$$ language 'plpgsql';
+
+select retorna_cnpj('114122456789060')
+
+
+
+-- Questão 3 --
+
+
+CREATE OR REPLACE FUNCTION retorna_telefone(telefone text)
+RETURNS text AS $$
+BEGIN
+	return (select '(' substring(telefone from 1 for 2) || ')' 
+	|| substring(telefone from 3 for 5) || '-' 
+	|| substring(telefone from 8 for 4);
+END;
+$$ language 'plpgsql';
+
+select retorna_telefone('33944551010');
+			
+
+			
+-- Questão 4 --
+			
+
+CREATE OR REPLACE FUNCTION retorna_resendencial(resendecial text)
+RETURNS text AS $$
+BEGIN
+	return (select '(' substring(resendencial from 1 for 2) || ')' 
+	|| substring(resendencial from 3 for 4) || '-' 
+	|| substring(resendencial from 7 for 4);
+END;
+$$ language 'plpgsql';
+
+select retorna_resendencial('3394450987');
+			
+			
+
+-- Questão 5 --
+
+			
+CREATE OR REPLACE FUNCTION retorna_decimal(moeda numeric(18,4))
+RETURNS varchar AS $$
+BEGIN
+	return (select 'R$ ' || round(moeda,2));
+END;
+$$ language 'plpgsql';		
+			
+select retorna_decimal(1234.86);
+			
+			
+			
+-- Questão 6 --
+			
+
+CREATE OR REPLACE FUNCTION retorna_credito(matricula integer)
+RETURNS void AS $$
+BEGIN
+	select SUM(codigo_curso) from disciplina INNER JOIN
+	disciplina_aluno ON disciplina_aluno.coddisciplina = disciplina.coddisciplina
+	and disciplina.matricula = matricula;
+END;
+$$ language 'plpgsql';
+			
+select retorna_credito();
+			
+
+
+-- Questão 7 --
+			
+			
+CREATE OR REPLACE FUNCTION quantidade_pescador()
+RETURNS void AS $$
+BEGIN
+	select COUNT(pescador.id) from pescador INNER JOIN parcelas
+	ON parcelas.idpescador = pescador.id WHERE
+	parcelas.codigosituacaoparcela = 7 GROUP BY pescador.id;
+END;
+$$ language 'plpgsql';
+
+select quantidade_pescador();
+
+			
+
+-- Questão 8 --
+			
+			
+CREATE OR REPLACE FUNCTION fc_log_disciplina_curso()
+RETURN TRIGGER AS $$
+BEGIN
+	insert into disciplina_log(coddisciplina,nome,creditos,valor)
+	values (new.coddisciplina,new.nome,new.creditos,new.valor);
+	insert into curso_log(cod_curso,nome)
+	values (new.cod_curso,new.nome);
+	RETURN NEW;
+END;
+			
+CREATE TRIGGER log_tabela BEFORE INSERT OR UPDATE
+ON aluno FOR EACH ROW EXECUTE FUNCTION fc_log_disciplina_curso();
+			
+			
+			
+-- Questão 9 --
+			
+				
+-- Questão a) --
+			
+
+CREATE TABLE empresa (
+  codigo integer PRIMARY KEY NOT NULL,
+  razao_social varchar(100),
+  valor_folha_pagto numeric
+);
+
+
+CREATE TABLE departamento_empresa (
+  dnome VARCHAR(40) NOT NULL,
+  dnr integer PRIMARY KEY NOT NULL,
+  sal_total decimal
+);
+ 
+
+CREATE TABLE funcionario_empresa (
+  nome varchar(40) NOT NULL,
+  cpf varchar(11) NOT NULL,
+  salario numeric(10,3) NOT NULL,
+  dnr integer NOT NULL,
+  cod_empresa integer NOT NULL,
+  FOREIGN KEY (dnr) REFERENCES departamento_empresa(dnr),
+  FOREIGN KEY (cod_empresa) REFERENCES empresa(codigo)
+);		
+
+			
+CREATE OR REPLACE FUNCTION atualiza_sal_total()
+RETURNS TRIGGER AS $$
+BEGIN
+	IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
+	UPDATE departamento_empresa
+	SET sal_total = (
+		SELECT SUM(salario) FROM funcionario_empresa
+		WHERE dnr = NEW.dnr
+	)
+	WHERE dnr = NEW.dnr;
+	ELSIF TG_OP = 'DELETE' THEN UPDATE departamento_empresa
+	SET sal_total = (
+		SELECT SUM(salario) FROM funcionario_empresa WHERE
+		dnr = OLD.dnr
+	)
+	WHERE dnr = OLD.dnr;
+	END IF;
+	RETURN NEW;
+END;
+$$ language 'plpgsql';
+			
+			
+
+CREATE TRIGGER atualiza_sal_total_trigger
+AFTER INSERT OR UPDATE OR DELETE ON funcionario_empresa
+FOR EACH ROW EXECUTE FUNCTION atualiza_sal_total();			
+
+			
+
+-- Questão b) --
+			
+			
+CREATE OR REPLACE FUNCTION atualiza_valor_folha_pagto()
+RETURNS TRIGGER AS $$
+BEGIN
+	IF TG_DP = 'UPDATE' OR TG_DP = 'DELETE' THEN
+	UPDATE empresa
+	SET valor_folha_pagto = (
+		SELECT SUM(sal_total) FROM departamento_empresa
+		WHERE dnr = NEW.dnr
+	)
+	WHERE codigo = (
+		SELECT cod_empresa FROM funcionario_empresa
+		WHERE dnr = NEW.dnr
+		LIMIT 1
+	);
+	END IF;
+	RETURN NEW;
+END;
+$$ language 'plpgsql';
+			
+			
+
+CREATE TRIGGER atualiza_volha_total_pagto_trigger
+AFTER UPDATE OR DELETE ON departamento_empresa
+FOR EACH ROW EXECUTE FUNCTION atualiza_valor_folha_pagto();
+					
+			
+			
+-- Questão 10 --
+
+
+CREATE OR REPLACE FUNCTION aplica_percentual(codigo_departamento integer,percentual integer)
+RETURNS void AS $$
+BEGIN
+	UPDATE salario = salario * (1 + percentual / 100)
+	WHERE dnr = codigo_departamento;
+END;
+$$ language 'plpgsql';
+			
+			
+
+-- Questão 11 --
+			
+			
+-- Questão a) --		
+			
+
+CREATE TABLE cliente(
+	cod_cliente integer PRIMARY KEY NOT NULL,
+	nome_cli varchar(30) NOT NULL
+)
+			
+CREATE TABLE produto(
+	cod_produto integer PRIMARY KEY NOT NULL,
+	nome_produto varchar(30) NOT NULL,
+	unidade integer,
+	valor_unitario integer,
+	quantidade_estoque integer
+)
+			
+CREATE TABLE nota_fiscal(
+	numero integer PRIMARY KEY NOT NULL,
+	dataemissao DATE,
+	cliente_cod integer NOT NULL,
+	valor_total numeric(10,2),
+	FOREIGN KEY(cliente_cod) REFERENCES
+	cliente(cod_cliente)
+)
+			
+CREATE TABLE itens_nota_fiscal(
+	id integer PRIMARY KEY NOT NULL,
+	produto_cod integer NOT NULL,
+	valor_unitario numeric(10,2),
+	quantidade integer,
+	total numeric(10,2),
+	cancelado BOOLEAN,
+	FOREIGN KEY(produto_cod) REFERENCES
+	produto(cod_produto)
+)
+			
+			
+CREATE OR REPLACE FUNCTION baixa_estoque()
+RETURNS TRIGGER AS $$
+BEGIN
+	IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
+	UPDATE produto
+	SET quantidade_estoque = quantidade_estoque - NEW.quantidade
+	WHERE cod_produto = NEW.cod_produto;
+	END IF;
+	RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+
+CREATE TRIGGER baixa_estoque_trigger 
+AFTER INSERT OR UPDATE ON itens_nota_fiscal
+FOR EACH ROW EXECUTE FUNCTION baixa_estoque();
+			
+
+-- Questão b) --
+			
+
+CREATE OR REPLACE FUNCTION atualiza_valor_total()
+RETURNS TRIGGER AS $$
+BEGIN
+	IF TG_VT = 'INSERT' OR TG_VT = 'UPDATE'
+	THEN UPDATE nota_fiscal
+	SET valor_total = valor_total + NEW.total
+	WHERE numero = NEW.numero;
+	END IF;
+	RETURN NEW;
+END;
+$$ language 'plpgsql';
+			
+
+CREATE TRIGGER atualiza_valor_total_trigger
+AFTER INSERT OR UPDATE ON itens_nota_fiscal
+FOR EACH ROW EXECUTE FUNCTION atualiza_valor_total();
+			
+
+
+-- Questão 12 --
+			
+			
+ALTER TABLE cliente ADD COLUMN data_ultima_atualizacao timestamp 
+			
+			
+CREATE OR REPLACE FUNCTION atualiza_data_ultima_atualizacao()
+RETURNS TRIGGER AS $$
+BEGIN
+	IF TG_DU = 'INSERT' OR TG_DU = 'UPDATE'
+	THEN UPDATE cliente
+	NEW.data_ultima_atualizacao = current_timestamp
+	RETURN NEW;
+END;
+$$ language 'plpgsql';
+	
+
+CREATE TRIGGER atualiza_data_ultima_atualizacao_trigger
+BEFORE INSERT OR UPDATE ON cliente
+FOR EACH ROW EXECUTE FUNCTION atualiza_data_ultima_atualizacao();

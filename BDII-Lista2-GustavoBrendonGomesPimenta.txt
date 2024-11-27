@@ -1,0 +1,132 @@
+INSTITUTO FEDERAL DE EDUCAÇÃO CIÊNCIA E TECNOLOGIA DE MINAS GERAIS – CAMPUS SÃO JOÃO EVANGELISTA
+BACHARELADO EM SISTEMAS DE INFORMAÇÃO
+ 
+Gustavo Brendon Gomes Pimenta
+
+Lista 2 - Banco de dados II
+ 
+
+SÃO JOÃO EVANGELISTA
+2023
+
+Tabelas criadas:
+
+CREATE TABLE Produto (
+codigo_produto SERIAL PRIMARY KEY,
+nome_produto VARCHAR(255) NOT NULL,
+unidade VARCHAR(50) NOT NULL,
+quantidade_em_estoque INT NOT NULL
+);
+CREATE TABLE Venda (
+id_venda SERIAL PRIMARY KEY,
+numero_venda VARCHAR(50) NOT NULL,
+codigo_produto INT,
+valor_produto DECIMAL(10, 2) NOT NULL,
+cancelado BOOLEAN NOT NULL
+);
+
+	-- Questão 1 --
+
+
+CREATE OR REPLACE FUNCTION inserir_produto(
+codigo_produto INT,
+nome_produto VARCHAR(255),
+unidade VARCHAR(50),
+quantidade_estoque INT
+) RETURNS VOID AS
+$$
+BEGIN
+INSERT INTO Produto (codigo_produto, nome_produto, unidade, quantidade_estoque)
+VALUES (codigo_produto, nome_produto, unidade, quantidade_estoque);
+END;
+$$
+LANGUAGE plpgsql;
+SELECT inserir_produto(6, 'Farinha de Trigo', 'kg', 40);
+
+
+	-- Questão 2 --
+
+
+CREATE OR REPLACE FUNCTION inserir_venda(
+numero_venda INT,
+codigo_produto INT,
+valor_produto NUMERIC(10, 2),
+cancelado BOOLEAN
+) RETURNS VOID AS
+$$
+BEGIN
+INSERT INTO Venda (numero_venda, codigo_produto, valor_produto, cancelado)
+VALUES (numero_venda, codigo_produto, valor_produto, cancelado);
+END;
+$$
+LANGUAGE plpgsql;
+SELECT inserir_venda(1006, 5, 9.99, false);
+
+
+	-- Questão 3 --
+
+
+CREATE OR REPLACE FUNCTION inserir_item_venda(
+numero_venda INT,
+codigo_produto INT,
+quantidade_vendida INT
+) RETURNS VOID AS
+$$
+BEGIN
+DECLARE estoque_atual INT;
+SELECT quantidade_estoque
+INTO estoque_atual
+FROM Produto
+WHERE codigo_produto = codigo_produto;
+IF estoque_atual >= quantidade_vendida THEN
+INSERT INTO Venda (numero_venda, codigo_produto, valor_produto, cancelado)
+VALUES (numero_venda, codigo_produto, 0.00, false);
+UPDATE Produto
+SET quantidade_estoque = quantidade_estoque - quantidade_vendida
+WHERE codigo_produto = codigo_produto;
+ELSE
+RAISE EXCEPTION 'Estoque insuficiente para o produto (Código: %)', codigo_produto;
+END IF;
+END;
+$$
+LANGUAGE plpgsql;
+
+	-- Questão 4 --
+
+
+CREATE OR REPLACE FUNCTION adicionar_ao_estoque(
+codigo_produto INT,
+quantidade_adicionada INT
+) RETURNS VOID AS
+$$
+BEGIN
+UPDATE Produto
+SET quantidade_estoque = quantidade_estoque + quantidade_adicionada
+WHERE codigo_produto = codigo_produto;
+END;
+$$
+LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION cancelar_item_venda(
+id_venda INT,
+codigo_produto INT
+) RETURNS VOID AS
+$$
+DECLARE
+quantidade_cancelada INT;
+BEGIN
+SELECT quantidade_vendida
+INTO quantidade_cancelada
+FROM Venda
+WHERE id_venda = id_venda AND codigo_produto = codigo_produto;
+IF quantidade_cancelada IS NOT NULL THEN
+UPDATE Venda
+SET cancelado = true
+WHERE id_venda = id_venda;
+PERFORM adicionar_ao_estoque(codigo_produto, quantidade_cancelada);
+ELSE
+RAISE EXCEPTION 'Item de venda não encontrado (ID da Venda: %, Código do Produto:
+%)', id_venda, codigo_produto;
+END IF;
+END;
+$$
+LANGUAGE plpgsql;

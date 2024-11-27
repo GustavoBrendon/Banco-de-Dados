@@ -1,0 +1,502 @@
+INSTITUTO FEDERAL DE EDUCAÇÃO CIÊNCIA E TECNOLOGIA DE MINAS GERAIS – CAMPUS SÃO JOÃO EVANGELISTA
+BACHARELADO EM SISTEMAS DE INFORMAÇÃO
+ 
+Gustavo Brendon Gomes Pimenta
+
+Lista 3 - Banco de dados II
+ 
+
+SÃO JOÃO EVANGELISTA
+2023
+
+
+Questão 1.
+
+CREATE FUNCTION Function_qtde_pescador_Gustavo()
+RETURNS integer AS $$ 
+DECLARE qtde INT;
+BEGIN
+    SELECT COUNT(*) from pescador INTO quantidade INNER JOIN
+    parcelas ON parcelas.idpescador = pescador.id
+    WHERE numerocomissaoparcela = 7 GROUP BY parcelas.id;
+END;
+
+select Function_qtde_pescador_Gustavo();
+
+Questão 2.
+
+
+CREATE TABLE EMPRESA(
+codigo INT PRIMARY KEY,
+razao_social VARCHAR(150),
+valor_folha_pagto DECIMAL(10,2) DEFAULT 0,
+qntd_dep INT DEFAULT 0,
+qntds_func INT DEFAULT 0
+);
+
+
+CREATE TABLE DEPARTAMENTO_EMPRESA(
+dnome VARCHAR(150),
+dnr INT PRIMARY KEY,
+sal_total DECIMAL(10,2) DEFAULT 0
+);
+
+
+CREATE TABLE FUNCIONARIO_EMPRESA(
+nome VARCHAR (150),
+cpf INT PRIMARY KEY,
+salario DECIMAL(10,2) DEFAULT 0,
+FOREIGN KEY (dnr) REFERENCES DEPARTAMENTO_EMPRESA(dnr),
+FOREIGN KEY (cod_empresa) REFERENCES EMPRESA(codigo)
+);
+
+
+Questão 2. a)
+
+
+(Função para inserir dados na tabela EMPRESA)
+
+
+CREATE OR REPLACE FUNCTION InsereDados(
+codigo INT,
+razao_social VARCHAR(150)
+)
+RETURNS VOID AS
+$$
+BEGIN
+INSERT INTO EMPRESA (codigo, razao_social)
+VALUES (codigo, razao_social);
+END;
+$$
+LANGUAGE plpgsql;
+
+
+(Função para inserir dados na tabela DEPARTAMENTO_EMPRESA)
+
+
+CREATE OR REPLACE FUNCTION InserirDepartamento(
+dnome VARCHAR(255)
+)
+RETURNS VOID AS
+$$
+BEGIN
+INSERT INTO DEPARTAMENTO_EMPRESA (dnome)
+VALUES (dnome);
+END;
+$$
+LANGUAGE plpgsql;
+
+
+(Função para inserir dados na tabela DEPARTAMENTO_EMPRESA)
+
+
+CREATE OR REPLACE FUNCTION InserirDepartamento(
+dnome VARCHAR(255)
+)
+RETURNS VOID AS
+$$
+BEGIN
+INSERT INTO DEPARTAMENTO_EMPRESA (dnome)
+VALUES (dnome);
+END;
+$$
+LANGUAGE plpgsql;
+
+
+(Função para inserir dados na tabela FUNCIONARIO_EMPRESA)
+
+
+CREATE OR REPLACE FUNCTION InserirFuncionario(
+nome VARCHAR(150),
+cpf VARCHAR(11),
+salario DECIMAL(10, 2),
+dnr INT,
+cod_empresa INT
+)
+RETURNS VOID AS
+$$
+BEGIN
+INSERT INTO FUNCIONARIO_EMPRESA (nome, cpf, salario, dnr, cod_empresa)
+VALUES (nome, cpf, salario, dnr, cod_empresa);
+END;
+$$
+LANGUAGE plpgsql;
+
+
+Questão 2. b) 
+
+
+CREATE OR REPLACE FUNCTION atualizarQtdeDep(
+codigo_empresa INT
+)
+RETURNS VOID AS
+$$
+BEGIN
+UPDATE EMPRESA
+SET qtde_dep = qtde_dep + 1
+WHERE codigo = codigo_empresa;
+END;
+$$
+LANGUAGE plpgsql;
+
+
+Questão 2. c)
+
+
+CREATE OR REPLACE FUNCTION atualizarQtdeFunc(
+codigo_empresa INT
+)
+RETURNS VOID AS
+$$
+BEGIN
+UPDATE EMPRESA
+SET qtde_func = qtde_func + 1
+WHERE codigo = codigo_empresa;
+END;
+$$
+LANGUAGE plpgsql;
+
+
+Questão 2. d)
+
+
+CREATE OR REPLACE FUNCTION atualizarSalDept(
+codigo_departamento INT,
+novo_valor DECIMAL(10, 2)
+)
+RETURNS VOID AS
+$$
+BEGIN
+UPDATE DEPARTAMENTO_EMPRESA
+SET sal_total = sal_total + novo_valor
+WHERE dnr = codigo_departamento;
+END;
+$$
+LANGUAGE plpgsql;
+
+
+Questão 2. e)
+
+
+CREATE OR REPLACE FUNCTION atualizarFolha(
+codigo_empresa INT,
+novo_valor_folha DECIMAL(10, 2)
+)
+RETURNS VOID AS
+$$
+BEGIN
+UPDATE EMPRESA
+SET valor_folha_pagto = valor_folha_pagto + novo_valor_folha
+WHERE codigo = codigo_empresa;
+END;
+$$
+LANGUAGE plpgsql;
+
+
+Questão 2. f)
+
+
+CREATE OR REPLACE FUNCTION InserirFuncionario(
+nome VARCHAR(255),
+cpf VARCHAR(11),
+salario DECIMAL(10, 2),
+dnr INT,
+cod_empresa INT,
+novo_salario_dept DECIMAL(10, 2),
+novo_valor_empresa DECIMAL(10, 2)
+)
+RETURNS VOID AS
+$$
+BEGIN
+
+
+(Inserir funcionário)
+    
+INSERT INTO FUNCIONARIO_EMPRESA (nome, cpf, salario, dnr, cod_empresa)
+VALUES (nome, cpf, salario, dnr, cod_empresa);
+
+
+(Atualizar salário do departamento)
+atualizarSalDept(dnr, novo_salario_dept);
+
+
+(Atualizar campos da tabela empresa)
+atualizarFolha(cod_empresa, novo_valor_empresa);
+atualizarQtdeDep(cod_empresa);
+atualizarQtdeFunc(cod_empresa);
+END;
+$$
+LANGUAGE plpgsql;
+
+
+Questão 3. a) 
+
+
+CREATE OR REPLACE FUNCTION aplicarAumentoDepartamento(
+codigo_departamento INT,
+percentual_aumento INT
+)
+RETURNS VOID AS
+$$
+BEGIN
+
+
+(Aplicar o aumento para os funcionários do departamento)
+
+
+UPDATE FUNCIONARIO_EMPRESA
+SET salario = salario * (1 + percentual_aumento / 100)
+WHERE dnr = codigo_departamento;
+END;
+$$
+LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION atualizarAumento() RETURNS VOID AS
+$$
+DECLARE
+codigo_departamento INT;
+novo_salario_departamento DECIMAL(10, 2);
+total_salarios_empresa DECIMAL(10, 2);
+BEGIN
+ 
+(Renova sobre todos os departamentos)
+
+
+FOR codigo_departamento IN (SELECT dnr FROM DEPARTAMENTO_EMPRESA) LOOP
+ 
+(Calcula o novo salário total do departamento)
+
+
+SELECT SUM(salario) INTO novo_salario_departamento
+FROM FUNCIONARIO_EMPRESA
+WHERE dnr = codigo_departamento;
+
+
+(Atualiza o salário total do departamento)
+
+
+UPDATE DEPARTAMENTO_EMPRESA
+SET sal_total = novo_salario_departamento
+WHERE dnr = codigo_departamento;
+END LOOP;
+
+
+(Calcula o novo total da folha de pagamento da empresa)
+
+
+SELECT SUM(salario) INTO total_salarios_empresa
+FROM FUNCIONARIO_EMPRESA;
+
+
+(Atualiza a folha de pagamento da empresa)
+
+
+UPDATE EMPRESA
+SET valor_folha_pagto = total_salarios_empresa;
+
+
+END;
+$$
+LANGUAGE plpgsql;
+
+
+Questão 3. b) 
+
+
+CREATE OR REPLACE FUNCTION atualizarAumento() RETURNS VOID AS
+$$
+DECLARE
+codigo_departamento INT;
+novo_salario_departamento DECIMAL(10, 2);
+total_salarios_empresa DECIMAL(10, 2);
+percentual_aumento INT := 10; -- Define o percentual de aumento aqui
+BEGIN
+
+
+(Renova sobre todos os departamentos)
+
+
+FOR codigo_departamento IN (SELECT dnr FROM DEPARTAMENTO_EMPRESA) LOOP
+
+
+(Calcula o novo salário total do departamento)
+
+
+SELECT SUM(salario) INTO novo_salario_departamento
+FROM FUNCIONARIO_EMPRESA
+WHERE dnr = codigo_departamento;
+
+
+(Atualiza o salário total do departamento)
+
+
+UPDATE DEPARTAMENTO_EMPRESA
+SET sal_total = novo_salario_departamento
+WHERE dnr = codigo_departamento;
+
+
+(Chama a função para aplicar o aumento no departamento)
+
+
+aplicarAumentoDepartamento(codigo_departamento, percentual_aumento);
+END LOOP;
+
+
+(Calcula o novo total da folha de pagamento da empresa)
+
+
+SELECT SUM(salario) INTO total_salarios_empresa
+FROM FUNCIONARIO_EMPRESA;
+
+
+(Atualiza a folha de pagamento da empresa)
+
+
+UPDATE EMPRESA
+SET valor_folha_pagto = total_salarios_empresa;
+
+
+END;
+$$
+LANGUAGE plpgsql;
+
+
+Questão 4.
+CREATE TABLE Empresa_Log (
+id serial PRIMARY KEY,
+codigo INT,
+razao_social VARCHAR(150),
+valor_folha_pagto DECIMAL(10, 2),
+qtde_dep INT,
+qtde_func INT,
+data_ultima_atualizacao TIMESTAMP DEFAULT current_timestamp
+);
+
+
+Questão 4. a)
+
+
+CREATE OR REPLACE FUNCTION RegistrarEmpresaLog(
+codigo_empresa INT
+)
+RETURNS VOID AS
+$$
+DECLARE
+empresa_data RECORD;
+BEGIN
+    
+SELECT * INTO empresa_data
+FROM Empresa
+WHERE codigo = codigo_empresa;
+
+
+INSERT INTO Empresa_Log (codigo, razao_social, valor_folha_pagto, qtde_dep, qtde_func)
+VALUES (empresa_data.codigo, empresa_data.razao_social, empresa_data.valor_folha_pagto, empresa_data.qtde_dep, empresa_data.qtde_func);
+
+
+UPDATE Empresa_Log
+SET data_ultima_atualizacao = current_timestamp
+WHERE codigo = codigo_empresa;
+END;
+$$
+LANGUAGE plpgsql;
+
+
+Questão 4. b)
+
+
+CREATE OR REPLACE FUNCTION InserirEmpresa(
+codigo INT,
+razao_social VARCHAR(150),
+valor_folha_pagto DECIMAL(10, 2),
+qtde_dep INT,
+qtde_func INT
+)
+RETURNS VOID AS
+$$
+BEGIN
+    
+INSERT INTO Empresa (codigo, razao_social, valor_folha_pagto, qtde_dep, qtde_func)
+VALUES (codigo, razao_social, valor_folha_pagto, qtde_dep, qtde_func);
+
+
+RegistrarEmpresaLog(codigo);
+END;
+$$
+LANGUAGE plpgsql;
+
+
+Questão 5. a)
+
+
+CREATE TABLE cliente (
+codigo SERIAL PRIMARY KEY,
+nome VARCHAR(150) NOT NULL,
+sexo CHAR(1),
+cpf VARCHAR(11),
+tipopessoa CHAR(1) CHECK (tipopessoa IN ('F', 'J')),
+qtdeTelefone INT
+);
+
+
+Questão 5. b)
+
+
+CREATE TABLE telefonescliente (
+id SERIAL PRIMARY KEY,
+codcliente INT,
+tipotelefone VARCHAR(150),
+numerotelefone VARCHAR(20)
+);
+
+
+Questão 5. c)
+
+
+CREATE DOMAIN tipopessoa_domain CHAR(1) CHECK (VALUE IN ('F', 'J'));
+
+
+Questão 5. d)
+
+
+CREATE DOMAIN tipotelefone_domain VARCHAR(255) CHECK (VALUE IN ('comercial', 'residencial', 'celular', 'outros'));
+
+
+Questão 5. e)
+
+
+CREATE OR REPLACE FUNCTION InserirCliente(
+nome VARCHAR(255),
+sexo CHAR(1),
+cpf VARCHAR(11),
+tipopessoa tipopessoa_domain,
+qtdeTelefone INT
+)
+RETURNS VOID AS
+$$
+BEGIN
+INSERT INTO cliente (nome, sexo, cpf, tipopessoa, qtdeTelefone)
+VALUES (nome, sexo, cpf, tipopessoa, qtdeTelefone);
+END;
+$$
+LANGUAGE plpgsql;
+
+
+Questão 5. f)
+
+
+CREATE OR REPLACE FUNCTION AtualizarQtdeTelefoneCliente(
+codigo_cliente INT
+)
+RETURNS VOID AS
+$$
+BEGIN
+
+
+UPDATE cliente
+SET qtdeTelefone = qtdeTelefone + 1
+WHERE codigo = codigo_cliente;
+END;
+$$
+LANGUAGE plpgsql;
