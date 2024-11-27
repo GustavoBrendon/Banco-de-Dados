@@ -1,0 +1,1 @@
+## Repositório criado para armazenamento dos arquivos da máteria realizada de Banco de dados - IFMG/SJE.
